@@ -1,7 +1,6 @@
 #ifndef _PHT_H
 #define _PHT_H
 
-#define _PHT_DEBUG
 #ifndef _PHT_DEBUG
     #define PHT_DEBUG(msg, ...)
 #else

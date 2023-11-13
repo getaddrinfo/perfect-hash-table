@@ -41,6 +41,20 @@ const int PRIME_LENGTH = ARRAY_SIZE(PRIMES);
 int _find_next_prime_gt_naive(int current);
 void _zero_array(int *arr, size_t size);
 
+typedef struct {
+    int offset;
+    int flag;
+} flag_access;
+
+flag_access flag_array_offset(int cycle) {
+    flag_access loc;
+    
+    loc.offset = cycle / sizeof(int);
+    loc.flag = cycle & (sizeof(int) - 1); // assuming sizeof(int) is a power of 2
+
+    return loc;
+}
+
 // TODO: fix mem leak in calloc slots (int*)
 pht_t *pht_create(
     pht_item_t items[],
@@ -57,7 +71,6 @@ pht_t *pht_create(
     // higher attempts (given smaller seeds_per_cycle) -> more likely to find a table faster, but more likely to use more memory than necessary
 
     int curr_prime, max_prime, attempt, seed_cycle, perfect;
-    int *slots;
 
     // at first, set curr_prime to the array size
     // it is then set to the actual curr_prime in first iter.
@@ -69,19 +82,20 @@ pht_t *pht_create(
     {
         curr_prime = _find_next_prime_gt_naive(curr_prime);
 
-        // malloc(sizeof(int) * curr_prime) + zeroed
-        slots = calloc(curr_prime, sizeof(int));
+        // we use bitflags to represent the current state
+        // of the slots - this way we can save memory
+        // for large slots (also this is on the stack
+        // so we don't have to worry about freeing it)
+        int slot_flags[(curr_prime / sizeof(int)) + 1];
 
         // cycle seeds from 0 -> seeds_per_cycle - 1
         for (seed_cycle = 0; seed_cycle < seeds_per_cycle; seed_cycle++)
         {
-            // if this isn't the first cycle, set all values back to zero
-            // avoids a free+calloc
-            if (seed_cycle != 0)
-                _zero_array(slots, curr_prime);
-
             PHT_DEBUG("seed cycle: %i", seed_cycle);
             perfect = 1;
+        
+            // zero the array for this cycle
+            _zero_array(slot_flags, ARRAY_SIZE(slot_flags));
 
             // check each element to see if it already exists
             // if it does, set perfect = 0 and break
@@ -90,14 +104,18 @@ pht_t *pht_create(
                 pht_item_t item = items[curr_elem_index];
 
                 int loc = fnv_32a_str(item.key, seed_cycle) % curr_prime;
+                // since we are using potentially >sizeof(int) flags,
+                // we need to find an offset for the 
+                flag_access offset = flag_array_offset(loc);
 
-                if (slots[loc] == 1)
+                // if the flag is set, we have not got a perfect array...
+                if ((slot_flags[offset.offset] & offset.flag) == offset.flag)
                 {
                     perfect = 0;
                     break;
                 }
 
-                slots[loc] = 1;
+                slot_flags[offset.offset] |= offset.flag;
             }
 
             if (perfect == 0)
@@ -106,23 +124,12 @@ pht_t *pht_create(
                 continue;
             };
 
-            // otherwise, we have a perfect table!
-            free(slots);
-            slots = NULL;
             break;
         }
 
         if (perfect == 1)
         {
             break;
-        }
-
-        // free slots for the next round
-        // TODO: maybe we should use realloc instead...
-        if (slots != NULL)
-        {
-            free(slots);
-            slots = NULL;
         }
 
         // we can't continue from here...
