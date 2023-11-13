@@ -31,6 +31,16 @@ char* not_present_items[] = {
     "HahAHAHA"
 };
 
+char* mixed_items[] = {
+    "test", 
+    "notreal",
+    "alsonotreal",
+    "asdf",
+    "wghatareyoua"
+};
+
+// this is a nice hack to make sure we always collide
+// to text exhaustion
 pht_item_t pht_item_dupes[] = {
     { .key = "test", .item = NULL },
     { .key = "test", .item = NULL }
@@ -126,6 +136,61 @@ void test_phs() {
     DEBUG_FINISH("phs");
 }
 
+void test_phs_intersection() {
+    DEBUG_MSG("phs/intersection", "begin");
+
+    phs_t* left = phs_create(items, ARRAY_SIZE(items), 100000, 2);
+    if (left == NULL) {
+        DEBUG_MSG("phs/intersection", "left: create failed");
+        assert(0);
+    }
+
+    phs_t* right = phs_create(items, ARRAY_SIZE(items), 100000, 2);
+    if (right == NULL) {
+        DEBUG_MSG("phs/intersection", "right: create failed");
+        assert(0);
+    }
+
+    phs_comp_t diff = phs_intersection(left, right);
+    for(int i = 0; i < diff.size; i++) {
+        DEBUG("phs/intersection", "found %s in both", diff.keys[i]);
+    }
+
+    phs_comp_free(diff);
+    phs_destroy(right);
+    phs_destroy(left);
+
+    DEBUG_FINISH("phs/intersection");
+}
+
+void test_phs_difference() {
+    DEBUG_MSG("phs/difference", "begin");
+
+    phs_t* current = phs_create(items, ARRAY_SIZE(items), 100000, 2);
+    if (current == NULL) {
+        DEBUG_MSG("phs/difference", "current: create failed");
+        assert(0);
+    }
+
+    phs_t* other = phs_create(mixed_items, ARRAY_SIZE(mixed_items), 100000, 2);
+    if (other == NULL) {
+        DEBUG_MSG("phs/difference", "other: create failed");
+        assert(0);
+    }
+
+    phs_comp_t diff = phs_difference(current, other);
+
+    for(int i = 0; i < diff.size; i++) {
+        DEBUG("phs/intersection", "found %s in current but not other", diff.keys[i]);
+    }
+
+    phs_comp_free(diff);
+    phs_destroy(other);
+    phs_destroy(current);
+
+    DEBUG_FINISH("phs/difference");
+}
+
 void test_pht_exhaustion() {
     pht_t* tab = pht_create(
         pht_items,
@@ -194,12 +259,65 @@ void test_pht_iterator() {
     DEBUG_FINISH("pht/iterator");
 }
 
+void test_phs_union_perfectly_different() {
+    phs_t* left = phs_create(items, ARRAY_SIZE(items), 100000, 2);
+    
+    if (left == NULL) {
+        DEBUG_MSG("phs/union/perfect", "left: null phs_create");
+        assert(0);
+    }
+
+    phs_t* right = phs_create(not_present_items, ARRAY_SIZE(items), 100000, 2);
+
+    if (right == NULL) {
+        DEBUG_MSG("phs/union/perfect", "right: null phs_create");
+        assert(0);
+    }
+
+    phs_comp_t union_ = phs_union(left, right);
+
+    for(int i = 0; i < union_.size; i++) {
+        DEBUG("phs/union/perfect", "found %s", union_.keys[i]);
+    }
+
+    DEBUG_FINISH("phs/union/perfect");
+}
+
+void test_phs_union_some_commonality() {
+   phs_t* left = phs_create(items, ARRAY_SIZE(items), 100000, 2);
+    
+    if (left == NULL) {
+        DEBUG_MSG("phs/union/common", "left: null phs_create");
+        assert(0);
+    }
+
+    phs_t* right = phs_create(mixed_items, ARRAY_SIZE(mixed_items), 100000, 2);
+
+    if (right == NULL) {
+        DEBUG_MSG("phs/union/common", "right: null phs_create");
+        assert(0);
+    }
+
+    phs_comp_t union_ = phs_union(left, right);
+
+    for(int i = 0; i < union_.size; i++) {
+        DEBUG("phs/union/common", "found %s", union_.keys[i]);
+    }
+
+    DEBUG_FINISH("phs/union/common");
+}
+
 int main() {
     test_pht();
-    test_phs();
     test_pht_exhaustion();
     test_pht_always_collide_exhausts_primes();
     test_pht_iterator();
-    
+
+    test_phs();
+    test_phs_difference();
+    test_phs_intersection();
+    test_phs_union_perfectly_different();
+    test_phs_union_some_commonality();
+
     return 0;
 }

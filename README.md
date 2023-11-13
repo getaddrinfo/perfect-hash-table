@@ -55,7 +55,11 @@ int main() {
 
 ### Set
 
-We also include a set built on top of `pht_t`. Currently only supports presence checks.
+We also include a set built on top of `pht_t`. Currently supports:
+- unions (`phs_union`)
+- differences (`phs_difference`)
+- intersection (`phs_intersection`)
+- presence checks (`phs_has`)
 
 ```c
 #include <phs.h>
@@ -85,3 +89,57 @@ int main() {
     return 0;
 }
 ```
+
+Union/Differences/Intersection all use the `phs_comp_t` struct. This has a size (of type `size_t`), and keys (of type `char**`)
+To consume the `phs_comp_t`, iterate from 0 to the `size - 1`
+
+```c
+#include <phs.h>
+
+int main() {
+    char* items[] = {
+        "a key",
+        "another key",
+        "another another key"
+    };
+
+    char* more_items[] = {
+        "a key 2",
+        "another key 2",
+        "another another key 2"
+    };
+
+    phs_t* left = phs_create(items, 3, 100000, 20);
+
+    if (left == NULL) {
+        // failed to create (malloc, found no suitable table size + seed combo)
+        return 1;
+    }
+
+    phs_t* right = phs_create(more_items, 3, 100000, 20);
+
+    if (right == NULL) {
+        phs_destroy(right);
+        // failed to create (malloc, found no suitable table size + seed combo)
+        return 1;
+    }
+
+    phs_comp_t union_ = phs_union(left, right);
+    
+    for(int i = 0; i union.size_; i++) {
+        printf("found %s\n", union_.keys[i]);
+    }
+
+    phs_comp_free(union_);
+    phs_destroy(right);
+    phs_destroy(left);
+
+    return 0;
+}
+```
+
+Make sure to call `phs_comp_free` to free the data within the comparison correctly. If not, you will leak memory.
+
+# License
+
+MIT (see `licenses` for included code licenses).

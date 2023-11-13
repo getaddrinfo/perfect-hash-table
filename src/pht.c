@@ -174,7 +174,7 @@ pht_t *pht_create(
         int loc = fnv_32a_str(items[i].key, seed_cycle) % curr_prime;
         int len = strlen(items[i].key);
 
-        char *dst = (char *)malloc(sizeof(char) * len + 1);
+        char *dst = (char *)malloc(sizeof(char) * (len + 1));
         strcpy(dst, items[i].key);
 
         arr[loc].key = dst;
